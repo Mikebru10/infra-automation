@@ -1,0 +1,14 @@
+version: '3.9'
+services:
+  prompt-webui:
+    build: ./webui
+    container_name: prompt-webui
+    volumes:
+      - {{ prompt_optimizer_data_root }}:/data
+      - {{ prompt_optimizer_repo_dir | default(prompt_optimizer_data_root + '/repo') }}:/repo
+    environment:
+      - OLLAMA_URL={{ prompt_optimizer_ollama_url }}
+      - MODEL={{ prompt_optimizer_model }}
+    ports:
+      - "8088:8080"
+    restart: unless-stopped
