@@ -1,0 +1,103 @@
+---
+- name: Ensure required packages are present
+  ansible.builtin.package:
+    name:
+      - git
+      - python3
+      - python3-pip
+      - curl
+    state: present
+
+- name: Ensure prompt optimizer directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ prompt_optimizer_owner | default('mike') }}"
+    group: "{{ prompt_optimizer_group | default('mike') }}"
+    mode: "0755"
+  loop:
+    - "{{ prompt_optimizer_install_dir }}"
+    - "{{ prompt_optimizer_data_root }}"
+    - "{{ prompt_optimizer_input_dir }}"
+    - "{{ prompt_optimizer_output_dir }}"
+    - "{{ prompt_optimizer_archive_dir }}"
+    - "{{ prompt_optimizer_repo_dir | default(prompt_optimizer_data_root + '/repo') }}"
+
+- name: Clone or update Export_Prompt toolkit
+  ansible.builtin.git:
+    repo: "{{ prompt_optimizer_toolkit_repo }}"
+    dest: "{{ prompt_optimizer_repo_dir | default(prompt_optimizer_data_root + '/repo') }}"
+    version: "{{ prompt_optimizer_toolkit_ref | default('main') }}"
+    update: true
+    force: true
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: prompt-optimizer.env.j2
+    dest: /etc/default/prompt-optimizer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy one-shot processing script
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../scripts/process-transcript-once.sh"
+    dest: /usr/local/bin/process-transcript-once
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy batch runner
+  ansible.builtin.template:
+    src: run-mbrunk-batch.sh.j2
+    dest: /usr/local/bin/run-mbrunk-batch
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy Docker Compose stack file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ prompt_optimizer_install_dir }}/docker-compose.yml"
+    owner: "{{ prompt_optimizer_owner | default('mike') }}"
+    group: "{{ prompt_optimizer_group | default('mike') }}"
+    mode: "0644"
+
+- name: Deploy web UI files
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../app/webui/"
+    dest: "{{ prompt_optimizer_install_dir }}/webui/"
+    owner: "{{ prompt_optimizer_owner | default('mike') }}"
+    group: "{{ prompt_optimizer_group | default('mike') }}"
+    mode: preserve
+
+- name: Deploy systemd service unit
+  ansible.builtin.template:
+    src: prompt-optimizer-batch.service.j2
+    dest: /etc/systemd/system/prompt-optimizer-batch.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy systemd timer unit
+  ansible.builtin.template:
+    src: prompt-optimizer-batch.timer.j2
+    dest: /etc/systemd/system/prompt-optimizer-batch.timer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable and start prompt optimizer timer
+  ansible.builtin.systemd:
+    name: prompt-optimizer-batch.timer
+    enabled: true
+    state: started
+
+- name: Start or update prompt optimizer web UI stack
+  ansible.builtin.shell: docker compose up -d --build
+  args:
+    chdir: "{{ prompt_optimizer_install_dir }}"
