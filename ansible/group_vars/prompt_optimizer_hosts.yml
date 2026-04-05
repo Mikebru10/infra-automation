@@ -4,7 +4,7 @@ prompt_optimizer_input_dir: "{{ prompt_optimizer_data_root }}/input"
 prompt_optimizer_output_dir: "{{ prompt_optimizer_data_root }}/output"
 prompt_optimizer_archive_dir: "{{ prompt_optimizer_data_root }}/archive"
 
-prompt_optimizer_ollama_url: http://REPLACE_WITH_YOUR_OLLAMA_HOST:11434
+prompt_optimizer_ollama_url: http://ollama.mbrunk.net:11434
 prompt_optimizer_model: llama3.1:8b
 
 prompt_optimizer_profile: technical-only
