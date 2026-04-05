@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source /etc/default/prompt-optimizer
+
+LOG_DIR="$PROMPT_OPTIMIZER_LOG_DIR"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/batch.log"
+
+INPUT_DIR="$PROMPT_OPTIMIZER_INPUT_DIR"
+ARCHIVE_DIR="$PROMPT_OPTIMIZER_ARCHIVE_DIR"
+REPO_DIR="$PROMPT_OPTIMIZER_REPO_DIR"
+
+for f in "$INPUT_DIR"/*; do
+  [ -e "$f" ] || continue
+
+  echo "Processing $f" | tee -a "$LOG_FILE"
+
+  python3 "$REPO_DIR/scripts/generate_prompt_artifact.py" \
+    --input "$f" \
+    --profile "$PROMPT_OPTIMIZER_PROFILE" \
+    --mode ollama \
+    --ollama-url "$OLLAMA_URL" \
+    --model "$OLLAMA_MODEL" \
+    --output-dir "$PROMPT_OPTIMIZER_OUTPUT_DIR" \
+    --title "$(basename "$f" | sed 's/\.[^.]*$//')" \
+    >> "$LOG_FILE" 2>&1
+
+  mv "$f" "$ARCHIVE_DIR/"
+
+  if [[ -n "$PROMPT_OPTIMIZER_NTFY_URL" ]]; then
+    curl -d "Processed $(basename "$f")" "$PROMPT_OPTIMIZER_NTFY_URL/$PROMPT_OPTIMIZER_NTFY_TOPIC" || true
+  fi
+
+done
