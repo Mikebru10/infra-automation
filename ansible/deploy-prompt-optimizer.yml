@@ -1,0 +1,6 @@
+---
+- name: Deploy full prompt optimizer stack
+  hosts: prompt_optimizer_hosts
+  become: true
+  roles:
+    - prompt_optimizer_stack
